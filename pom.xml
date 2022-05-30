@@ -13,7 +13,7 @@
     <version>1.0.0</version>
     <packaging>war</packaging>
     <name>golden-raspberry-awards-api</name>
-    <description>Demo project for Spring Boot</description>
+    <description>API desenvolvida para obter os produtores com maior e menor intervalo entre dois prêmios da categoria Pior Filme do Golden Raspberry Awards.</description>
     <properties>
         <java.version>1.8</java.version>
     </properties>
