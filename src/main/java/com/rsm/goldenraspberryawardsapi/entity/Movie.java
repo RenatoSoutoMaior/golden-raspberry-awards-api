@@ -29,9 +29,6 @@ public class Movie {
     private String title;
 
     @OneToMany
-    private Set<MovieStudio> studios = new HashSet<>();
-
-    @OneToMany
     private Set<MovieProducer> producers = new HashSet<>();
 
     @NotNull
