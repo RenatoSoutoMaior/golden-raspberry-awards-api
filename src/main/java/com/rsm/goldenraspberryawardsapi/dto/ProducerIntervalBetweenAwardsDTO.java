@@ -3,25 +3,21 @@ package com.rsm.goldenraspberryawardsapi.dto;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
 public class ProducerIntervalBetweenAwardsDTO {
 
-    private Set<ProducerAwardsDTO> min = new HashSet<>();
-    private Set<ProducerAwardsDTO> max = new HashSet<>();
+    private List<ProducerAwardsDTO> min = new ArrayList<>();
+    private List<ProducerAwardsDTO> max = new ArrayList<>();
 
-    public void setMin(Set<ProducerAwardsDTO> min) {
-        for (ProducerAwardsDTO producerAwardsDTO : min) {
-            this.getMin().add(producerAwardsDTO);
-        }
+    public void setMin(List<ProducerAwardsDTO> min) {
+        this.min = min;
     }
 
-    public void setMax(Set<ProducerAwardsDTO> max) {
-        for (ProducerAwardsDTO producerAwardsDTO : max) {
-            this.getMax().add(producerAwardsDTO);
-        }
+    public void setMax(List<ProducerAwardsDTO> max) {
+        this.max = max;
     }
 }

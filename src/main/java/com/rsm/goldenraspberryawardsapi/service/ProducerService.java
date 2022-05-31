@@ -11,16 +11,15 @@ import com.rsm.goldenraspberryawardsapi.repository.ProducerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ProducerService {
 
     private final ProducerRepository producerRepository;
     private final MovieProducerRepository movieProducerRepository;
-    private static final String REGEX = ",| and ";
+    private static final String REGEX = ", | and ";
 
     @Autowired
     public ProducerService(ProducerRepository producerRepository, MovieProducerRepository movieProducerRepository) {
@@ -46,50 +45,60 @@ public class ProducerService {
     public ProducerIntervalBetweenAwardsDTO getIntervalBetweenAwards() {
         List<MovieProducer> movieProducers = movieProducerRepository.findByMovieWinnerOrderByYear("yes");
 
+        Map<Producer, List<MovieProducer>> movieProducersByProducers = movieProducers.stream().collect(Collectors.groupingBy(MovieProducer::getProducer));
+        List<ProducerAwardsDTO> producerAwards = fillProducersAwardsAttributes(movieProducersByProducers);
+
         ProducerIntervalBetweenAwardsDTO producerIntervalBetweenAwardsDTO = new ProducerIntervalBetweenAwardsDTO();
-        producerIntervalBetweenAwardsDTO.setMax(findInterval(movieProducers, IntervalType.MAX));
-        producerIntervalBetweenAwardsDTO.setMin(findInterval(movieProducers, IntervalType.MIN));
+        producerIntervalBetweenAwardsDTO.setMax(findInterval(producerAwards, IntervalType.MAX));
+        producerIntervalBetweenAwardsDTO.setMin(findInterval(producerAwards, IntervalType.MIN));
 
         return producerIntervalBetweenAwardsDTO;
     }
 
-    private Set<ProducerAwardsDTO> findInterval(List<MovieProducer> movieProducers, IntervalType intervalType) {
-        Set<ProducerAwardsDTO> producerAwardsDTOS = new HashSet<>();
-
-        ProducerAwardsDTO producerAwards = new ProducerAwardsDTO();
-        producerAwards.setInterval(IntervalType.MAX.equals(intervalType) ? Integer.MIN_VALUE : Integer.MAX_VALUE);
-
-        movieProducers.forEach(movieProducer1 -> movieProducers.forEach(movieProducer2 -> {
-            if (!movieProducer1.getId().equals(movieProducer2.getId())) {
-                if (movieProducer1.getProducer().equals(movieProducer2.getProducer())) {
-                    Integer interval = Math.abs(movieProducer1.getMovie().getYear() - movieProducer2.getMovie().getYear());
-
-                    if (IntervalType.MAX.equals(intervalType) && interval >= producerAwards.getInterval()) {
-                        if (interval.equals(producerAwards.getInterval())) {
-                            producerAwardsDTOS.add(fillProducerAwardsAttributes(new ProducerAwardsDTO(), movieProducer1, movieProducer2, interval));
-                        } else {
-                            producerAwardsDTOS.add(fillProducerAwardsAttributes(producerAwards, movieProducer1, movieProducer2, interval));
-                        }
-                    } else if (IntervalType.MIN.equals(intervalType) && interval <= producerAwards.getInterval()) {
-                        if (interval.equals(producerAwards.getInterval())) {
-                            producerAwardsDTOS.add(fillProducerAwardsAttributes(new ProducerAwardsDTO(), movieProducer1, movieProducer2, interval));
-                        } else {
-                            producerAwardsDTOS.add(fillProducerAwardsAttributes(producerAwards, movieProducer1, movieProducer2, interval));
-                        }
-                    }
-                }
-            }
-        }));
-
-        return producerAwardsDTOS;
+    private List<ProducerAwardsDTO> findInterval(List<ProducerAwardsDTO> producerAwards, IntervalType intervalType) {
+        if (intervalType.equals(IntervalType.MAX)) {
+            return producerAwards.stream().filter(
+                    producerInterval -> producerInterval.getInterval().equals(
+                            producerAwards.stream()
+                                    .max(Comparator.comparing(ProducerAwardsDTO::getInterval))
+                                    .orElseThrow(NoSuchElementException::new).getInterval()
+                    )
+            ).collect(Collectors.toList());
+        } else {
+            return producerAwards.stream().filter(
+                    producerInterval -> producerInterval.getInterval().equals(
+                            producerAwards.stream()
+                                    .min(Comparator.comparing(ProducerAwardsDTO::getInterval))
+                                    .orElseThrow(NoSuchElementException::new).getInterval()
+                    )
+            ).collect(Collectors.toList());
+        }
     }
 
-    private ProducerAwardsDTO fillProducerAwardsAttributes(ProducerAwardsDTO producerAwardsDTO, MovieProducer movieProducer1, MovieProducer movieProducer2, Integer interval) {
-        producerAwardsDTO.setProducer(movieProducer1.getProducer().getName());
-        producerAwardsDTO.setInterval(interval);
-        producerAwardsDTO.setPreviousWin(movieProducer1.getMovie().getYear());
-        producerAwardsDTO.setFollowingWin(movieProducer2.getMovie().getYear());
+    private List<ProducerAwardsDTO> fillProducersAwardsAttributes(Map<Producer, List<MovieProducer>> moviesByProducer) {
+        List<ProducerAwardsDTO> producerAwards = new ArrayList<>();
 
-        return producerAwardsDTO;
+        moviesByProducer.forEach((producer, movieProducer) -> {
+            movieProducer.sort(Comparator.comparing(movieProducer1 -> movieProducer1.getMovie().getYear()));
+            if (movieProducer.size() > 1) {
+                movieProducer.forEach(movie -> {
+                    MovieProducer nextMovie = getNextMovie(movieProducer, movie);
+                    if (nextMovie != null) {
+                        ProducerAwardsDTO producerAwardsDTO = new ProducerAwardsDTO(producer.getName(), movie.getMovie().getYear(), nextMovie.getMovie().getYear());
+                        producerAwardsDTO.setInterval(producerAwardsDTO.getFollowingWin() - producerAwardsDTO.getPreviousWin());
+                        producerAwards.add(producerAwardsDTO);
+                    }
+                });
+            }
+        });
+        return producerAwards;
+    }
+
+    private MovieProducer getNextMovie(List<MovieProducer> winningMovies, MovieProducer currentMovie) {
+        int index = winningMovies.indexOf(currentMovie);
+        if (index < 0 || index + 1 == winningMovies.size()) {
+            return null;
+        }
+        return winningMovies.get(index + 1);
     }
 }

@@ -14,6 +14,12 @@ public class ProducerAwardsDTO {
     private Integer previousWin;
     private Integer followingWin;
 
+    public ProducerAwardsDTO(String producer, Integer previousWin, Integer followingWin) {
+        this.producer = producer;
+        this.previousWin = previousWin;
+        this.followingWin = followingWin;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
